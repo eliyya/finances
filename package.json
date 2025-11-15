@@ -2,13 +2,21 @@
   "name": "finanzas",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3030",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start --port 3030",
+    "lint": "eslint",
+    "start:db": "prisma dev"
   },
   "dependencies": {
+    "@js-temporal/polyfill": "0.5.1",
+    "@mantine/core": "8.3.7",
+    "@mantine/hooks": "8.3.7",
+    "@prisma/adapter-pg": "6.19.0",
+    "@prisma/client": "6.19.0",
+    "effect": "3.19.3",
     "next": "16.0.3",
     "react": "19.2.0",
     "react-dom": "19.2.0"
@@ -18,8 +26,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
+    "prettier": "^3.6.2",
+    "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
