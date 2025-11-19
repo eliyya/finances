@@ -15,16 +15,29 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 model Transaction {
   id          String   @id @default(dbgenerated("snowflake()"))
+  card_id     String
   amount      Float
   description String
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  card Card @relation(fields: [card_id], references: [id])
+}
+
+model Card {
+  id          String   @id @default(dbgenerated("snowflake()"))
+  name        String
+  closing_day Int
+  grace_days  Int
+  balance     Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions Transaction[]
 }
