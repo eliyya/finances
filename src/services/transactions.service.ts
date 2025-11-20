@@ -116,7 +116,7 @@ type TransactionMapped = {
     is_actual_closing: boolean
 }
 export function getCardWithTransactionsInACicleEffect(
-    card_id: string,
+    card_name: string,
     timestamp: number,
 ) {
     return Effect.gen(function* (_) {
@@ -125,9 +125,12 @@ export function getCardWithTransactionsInACicleEffect(
         const card = yield* _(
             Effect.tryPromise({
                 try: () =>
-                    prisma.card.findUnique({
+                    prisma.card.findFirst({
                         where: {
-                            id: card_id,
+                            name: {
+                                equals: card_name,
+                                mode: 'insensitive',
+                            },
                         },
                     }),
                 catch: error => new PrismaError({ cause: error }),

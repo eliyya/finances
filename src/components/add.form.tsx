@@ -3,16 +3,6 @@
 import { addTransactionAction } from '@/actions/transactions.actions'
 import { useActionState } from 'react'
 
-function createTransaction(card_id: string) {
-    return async (
-        prevState: Parameters<typeof addTransactionAction>[0],
-        data: FormData,
-    ) => {
-        data.append('card_id', card_id)
-        return await addTransactionAction(prevState, data)
-    }
-}
-
 export function AddForm() {
     const [state, formAction, dispose] = useActionState(addTransactionAction, {
         inputs: {

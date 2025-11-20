@@ -32,7 +32,7 @@ model Transaction {
 
 model Card {
   id          String   @id @default(dbgenerated("snowflake()"))
-  name        String
+  name        String   @unique
   closing_day Int
   grace_days  Int
   balance     Float    @default(0)

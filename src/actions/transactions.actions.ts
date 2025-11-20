@@ -5,15 +5,14 @@ import { db } from '@/prisma/db'
 import { getCardWithTransactionsInACicleEffect } from '@/services/transactions.service'
 import { Temporal } from '@js-temporal/polyfill'
 import { Effect } from 'effect'
-import { updateTag } from 'next/cache'
 
 export async function getCardWithTransactionsInACicleAction(
-    card_id: string,
+    card_name: string,
     timestamp: number,
 ) {
     return await Effect.runPromise(
         Effect.scoped(
-            getCardWithTransactionsInACicleEffect(card_id, timestamp)
+            getCardWithTransactionsInACicleEffect(card_name, timestamp)
                 .pipe(Effect.provide(PrismaLive))
                 .pipe(
                     Effect.catchAll(error => {
@@ -40,23 +39,34 @@ export const addTransactionAction: FormAction<{
     const description = data.get('description') as string
     const amount = parseFloat(data.get('amount') as string)
 
-    await db.transaction.create({
-        data: {
-            date: new Date(
-                Temporal.ZonedDateTime.from({
-                    timeZone: 'America/Monterrey',
-                    day: parseInt(date.split('-')[2]),
-                    month: parseInt(date.split('-')[1]),
-                    year: parseInt(date.split('-')[0]),
-                }).epochMilliseconds,
-            ),
-            description,
-            amount,
-            card_id: prevState.inputs.card_id,
-        },
+    await db.$transaction(async db => {
+        await db.transaction.create({
+            data: {
+                date: new Date(
+                    Temporal.ZonedDateTime.from({
+                        timeZone: 'America/Monterrey',
+                        day: parseInt(date.split('-')[2]),
+                        month: parseInt(date.split('-')[1]),
+                        year: parseInt(date.split('-')[0]),
+                    }).epochMilliseconds,
+                ),
+                description,
+                amount,
+                card_id: prevState.inputs.card_id,
+            },
+        })
+        await db.card.update({
+            where: {
+                id: prevState.inputs.card_id,
+            },
+            data: {
+                balance: {
+                    increment: amount,
+                },
+            },
+        })
     })
 
-    updateTag('transactions')
     return {
         inputs: {
             date: new Date().toISOString().slice(0, 10),
@@ -65,4 +75,15 @@ export const addTransactionAction: FormAction<{
             card_id: prevState.inputs.card_id,
         },
     }
+}
+
+export async function getTransactions(card_name: string) {
+    const card = await getCardWithTransactionsInACicleAction(
+        card_name,
+        Temporal.Now.zonedDateTimeISO('America/Monterrey').subtract({
+            months: 2,
+        }).epochMilliseconds,
+    )
+    if (!card) return { card: null, transactions: [] }
+    return { card, transactions: card.transactions }
 }
