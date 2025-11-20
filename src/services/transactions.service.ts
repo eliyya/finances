@@ -137,11 +137,6 @@ export function getCardWithTransactionsInACicleEffect(
         if (!card) return null
 
         const closing = yield* _(getClosingDate(timestamp, card.closing_day))
-        const date = Temporal.Instant.fromEpochMilliseconds(
-            closing.timestamp,
-        ).toZonedDateTimeISO('America/Monterrey')
-        console.log({ date: date.epochMilliseconds })
-
         const transactions = yield* _(
             Effect.tryPromise({
                 try: () =>
@@ -149,7 +144,13 @@ export function getCardWithTransactionsInACicleEffect(
                         where: {
                             card_id: card.id,
                             date: {
-                                gt: new Date(date.epochMilliseconds),
+                                gt: new Date(
+                                    Temporal.Instant.fromEpochMilliseconds(
+                                        closing.timestamp,
+                                    ).toZonedDateTimeISO(
+                                        'America/Monterrey',
+                                    ).epochMilliseconds,
+                                ),
                             },
                         },
                         orderBy: { date: 'desc' },
@@ -198,9 +199,6 @@ export function getCardWithTransactionsInACicleEffect(
                 ),
             )
         }
-
-        console.log({ card, transactions, transformed, f: 3 })
-
         return {
             ...card,
             transactions: transformed,

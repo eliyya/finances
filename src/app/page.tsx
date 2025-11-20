@@ -59,7 +59,7 @@ export default async function Home() {
                         'text-yellow-600': is_actual_closing,
                     })}
                 >
-                    {closing.month}
+                    {closing.month_name}
                 </TableTd>
                 <TableTd
                     className={cn({

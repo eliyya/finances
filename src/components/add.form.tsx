@@ -3,16 +3,27 @@
 import { addTransactionAction } from '@/actions/transactions.actions'
 import { useActionState } from 'react'
 
+function createTransaction(card_id: string) {
+    return async (
+        prevState: Parameters<typeof addTransactionAction>[0],
+        data: FormData,
+    ) => {
+        data.append('card_id', card_id)
+        return await addTransactionAction(prevState, data)
+    }
+}
+
 export function AddForm() {
     const [state, formAction, dispose] = useActionState(addTransactionAction, {
         inputs: {
             date: new Date().toISOString().slice(0, 10),
             description: '',
             amount: 0,
+            card_id: '62215335226376193',
         },
     })
     return (
-        <form action={formAction} className='flex justify-center'>
+        <form action={formAction} className='flex flex-wrap justify-center'>
             <input type='date' name='date' defaultValue={state.inputs.date} />
             <input
                 type='text'
@@ -24,6 +35,7 @@ export function AddForm() {
             <input
                 type='number'
                 name='amount'
+                step='0.01'
                 placeholder='Monto'
                 className='m-2 rounded border p-2'
                 defaultValue={state.inputs.amount}
