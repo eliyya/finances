@@ -25,12 +25,14 @@ const to: [string, string, number][] = [
     ['15/11/25', 'Pago Pizza', -138.0],
 ]
 
+let balance = 0
 db.$transaction(async p => {
     const card = await p.card.create({
         data: {
             name: 'Stori',
             closing_day: 12,
             grace_days: 21,
+            limit: 60000,
         },
     })
     for (const [date, description, amount] of to) {
@@ -50,16 +52,23 @@ db.$transaction(async p => {
                 amount,
             },
         })
-
+        balance += amount
         await p.transaction.create({
             data: {
                 card_id: card.id,
                 date: new Date(milis),
                 description,
                 amount,
+                balance: balance + amount,
+                debt: amount < 0 ? Math.abs(amount) : 0,
+                period: new Date(milis),
             },
         })
     }
+    await p.card.update({
+        where: { id: card.id },
+        data: { balance },
+    })
 })
 
 // const t = await db.transaction.findMany({
