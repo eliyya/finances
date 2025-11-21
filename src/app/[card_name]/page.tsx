@@ -19,22 +19,25 @@ export default function Home({ params }: PageProps<'/[card_name]'>) {
                         <AddForm />
                     </Suspense>
                 </div>
-                <Table>
-                    <TableThead>
-                        <TableTr>
-                            <TableTh>Fecha</TableTh>
-                            <TableTh>Concepto</TableTh>
-                            <TableTh>Monnto</TableTh>
-                            <TableTh>Mes (Corte)</TableTh>
-                            <TableTh>Fecha Límite</TableTh>
-                        </TableTr>
-                    </TableThead>
-                    <TableTbody>
-                        <Suspense>
-                            <Transactions params={params} />
-                        </Suspense>
-                    </TableTbody>
-                </Table>
+                <div className='flex overflow-x-scroll'>
+                    <Table>
+                        <TableThead>
+                            <TableTr>
+                                <TableTh>Fecha</TableTh>
+                                <TableTh>Concepto</TableTh>
+                                <TableTh>Monto</TableTh>
+                                <TableTh>Mes (Corte)</TableTh>
+                                <TableTh>Fecha Límite</TableTh>
+                                <TableTh>Acumulado</TableTh>
+                            </TableTr>
+                        </TableThead>
+                        <TableTbody>
+                            <Suspense>
+                                <Transactions params={params} />
+                            </Suspense>
+                        </TableTbody>
+                    </Table>
+                </div>
             </div>
         </div>
     )

@@ -17,6 +17,16 @@ export async function Balance({
                     currency: 'MXN',
                 }) ?? '??'}
             </span>
+            <span>
+                Disponible:{' '}
+                {((card?.limit ?? 0) - (card?.balance ?? 0)).toLocaleString(
+                    'es-MX',
+                    {
+                        style: 'currency',
+                        currency: 'MXN',
+                    },
+                ) ?? '??'}
+            </span>
         </>
     )
 }

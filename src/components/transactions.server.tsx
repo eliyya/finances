@@ -19,10 +19,18 @@ export async function Transactions({ params }: TransactionsProps) {
             closing,
             is_actual_closing,
             is_actual_limit,
+            balance,
+            debt,
         }) => (
             <TableTr key={id}>
                 <TableTd>{new Date(date).toLocaleDateString('es-MX')}</TableTd>
-                <TableTd>{description}</TableTd>
+                <TableTd
+                    className={cn({
+                        'text-yellow-600': debt,
+                    })}
+                >
+                    {description}
+                </TableTd>
                 <TableTd
                     className={cn({
                         'text-red-500': amount > 0,
@@ -47,6 +55,12 @@ export async function Transactions({ params }: TransactionsProps) {
                     })}
                 >
                     {limit.date}
+                </TableTd>
+                <TableTd>
+                    {balance.toLocaleString('es-MX', {
+                        style: 'currency',
+                        currency: 'MXN',
+                    })}
                 </TableTd>
             </TableTr>
         ),

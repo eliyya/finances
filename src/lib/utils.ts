@@ -56,6 +56,8 @@ export function getClosingDate(date: Date, closing_day: number) {
             month: 'long',
             day: 'numeric',
         }),
+        timestamp:
+            closing.toZonedDateTime('America/Monterrey').epochMilliseconds,
     }
 }
 

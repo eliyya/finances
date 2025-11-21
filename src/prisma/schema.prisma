@@ -24,6 +24,9 @@ model Transaction {
   amount      Float
   description String
   date        DateTime @default(now())
+  balance     Float
+  debt        Float
+  period      DateTime
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -36,6 +39,7 @@ model Card {
   closing_day Int
   grace_days  Int
   balance     Float    @default(0)
+  limit       Float    @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

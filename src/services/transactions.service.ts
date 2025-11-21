@@ -1,5 +1,6 @@
 import { PrismaError } from '@/errors/effect.error'
 import { PrismaService } from '@/layers/db.layer'
+import { Transaction } from '@/prisma/generated/browser'
 import { Temporal } from '@js-temporal/polyfill'
 import { Effect } from 'effect'
 
@@ -87,15 +88,14 @@ export function getCardWithTransactionsEffect(card_id: string) {
         return transactions
     })
 }
+// recibe object convert Date to number
+export type Serializable<T> = {
+    [K in keyof T]: T[K] extends bigint ? string
+    : T[K] extends Date ? number
+    : T[K]
+}
 
-type TransactionMapped = {
-    id: string
-    createdAt: number
-    updatedAt: number
-    date: number
-    card_id: string
-    amount: number
-    description: string
+type TransactionMapped = Serializable<Transaction> & {
     limit: {
         month: number
         month_name: string
@@ -140,71 +140,80 @@ export function getCardWithTransactionsInACicleEffect(
         if (!card) return null
 
         const closing = yield* _(getClosingDate(timestamp, card.closing_day))
+        const limit = yield* _(
+            getLimitDate(timestamp, card.closing_day, card.grace_days),
+        )
+
         const transactions = yield* _(
             Effect.tryPromise({
                 try: () =>
                     prisma.transaction.findMany({
                         where: {
-                            card_id: card.id,
-                            date: {
-                                gt: new Date(
-                                    Temporal.Instant.fromEpochMilliseconds(
-                                        closing.timestamp,
-                                    ).toZonedDateTimeISO(
-                                        'America/Monterrey',
-                                    ).epochMilliseconds,
-                                ),
-                            },
+                            AND: [
+                                {
+                                    date: {
+                                        gt: new Date(closing.timestamp),
+                                    },
+                                },
+                                {
+                                    date: {
+                                        lte: new Date(limit.timestamp),
+                                    },
+                                },
+                                {
+                                    card_id: card.id,
+                                },
+                            ],
                         },
                         orderBy: { date: 'desc' },
                     }),
                 catch: error => new PrismaError({ cause: error }),
-            }),
-        )
-        let transformed: TransactionMapped[] = []
-        if (card) {
-            transformed = yield* _(
-                Effect.forEach(transactions, transaction =>
-                    Effect.gen(function* (_) {
-                        const limit = yield* _(
-                            getLimitDate(
-                                transaction.date.getTime(),
-                                card.closing_day,
-                                card.grace_days,
-                            ),
-                        )
-                        const closing = yield* _(
-                            getClosingDate(
-                                transaction.date.getTime(),
-                                card.closing_day,
-                            ),
-                        )
-                        const newTransaction: TransactionMapped = {
-                            ...transaction,
-                            createdAt: transaction.createdAt.getTime(),
-                            updatedAt: transaction.updatedAt.getTime(),
-                            date: transaction.date.getTime(),
-                            limit,
-                            closing,
-                            is_actual_limit:
-                                limit.month ===
-                                Temporal.Now.zonedDateTimeISO(
-                                    'America/Monterrey',
-                                ).add({ days: card.grace_days }).month,
-                            is_actual_closing:
-                                closing.month ===
-                                Temporal.Now.zonedDateTimeISO(
-                                    'America/Monterrey',
-                                ).month,
-                        }
-                        return newTransaction
-                    }),
+            }).pipe(
+                Effect.flatMap(
+                    Effect.forEach(transaction =>
+                        Effect.gen(function* (_) {
+                            const limit = yield* _(
+                                getLimitDate(
+                                    transaction.date.getTime(),
+                                    card.closing_day,
+                                    card.grace_days,
+                                ),
+                            )
+                            const closing = yield* _(
+                                getClosingDate(
+                                    transaction.date.getTime(),
+                                    card.closing_day,
+                                ),
+                            )
+                            const newTransaction: TransactionMapped = {
+                                ...transaction,
+                                createdAt: transaction.createdAt.getTime(),
+                                updatedAt: transaction.updatedAt.getTime(),
+                                date: transaction.date.getTime(),
+                                limit,
+                                closing,
+                                is_actual_limit:
+                                    limit.month ===
+                                    Temporal.Now.zonedDateTimeISO(
+                                        'America/Monterrey',
+                                    ).add({ days: card.grace_days }).month,
+                                is_actual_closing:
+                                    closing.month ===
+                                    Temporal.Now.zonedDateTimeISO(
+                                        'America/Monterrey',
+                                    ).month,
+                                period: transaction.period.getTime(),
+                            }
+                            return newTransaction
+                        }),
+                    ),
                 ),
-            )
-        }
+            ),
+        )
+
         return {
             ...card,
-            transactions: transformed,
+            transactions,
         }
     })
 }
