@@ -18,30 +18,142 @@ datasource db {
   provider = "postgresql"
 }
 
-model Transaction {
-  id          String   @id @default(dbgenerated("snowflake()"))
-  card_id     String
-  amount      Float
-  description String
-  date        DateTime @default(now())
-  balance     Float
-  debt        Float
-  period      DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum TransactionType {
+  PURCHASE
+  PAYMENT // pago / abono hacia la tarjeta (puede ser asignado a transacciones específicas)
+  INSTALLMENT // mensualidad generada por una compra diferida
+  REFUND
+  TRANSFER
 
-  card Card @relation(fields: [card_id], references: [id])
+  @@map("transaction_type")
 }
 
-model Card {
-  id          String   @id @default(dbgenerated("snowflake()"))
-  name        String   @unique
-  closing_day Int
-  grace_days  Int
-  balance     Float    @default(0)
-  limit       Float    @default(1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum PaymentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
 
+  @@map("payment_status")
+}
+
+enum Currency {
+  MXN
+  USD
+  EUR
+
+  @@map("currency")
+}
+
+model User {
+  id         Int      @id @default(autoincrement()) @map("id")
+  email      String   @unique @map("email")
+  name       String?  @map("name")
+  created_at DateTime @default(now()) @map("created_at")
+
+  credit_cards CreditCard[]  @relation("user_cards")
   transactions Transaction[]
+
+  @@map("users")
+}
+
+model CreditCard {
+  id           Int      @id @default(autoincrement()) @map("id")
+  user_id      Int      @map("user_id")
+  name         String   @map("name") // e.g., "BBVA Platino"
+  issuer       String?  @map("issuer") // banco / emisor
+  last_four    String   @map("last_four") // últimos 4 dígitos
+  credit_limit Decimal  @map("credit_limit") @db.Decimal(12, 2)
+  credit_used  Decimal  @default("0.00") @map("credit_used") @db.Decimal(12, 2)
+  currency     Currency @default(MXN) @map("currency")
+  created_at   DateTime @default(now()) @map("created_at")
+
+  // relaciones
+  user         User          @relation("user_cards", fields: [user_id], references: [id])
+  transactions Transaction[] @relation("card_transactions")
+
+  @@index([user_id], name: "idx_credit_cards_user_id")
+  @@map("credit_cards")
+}
+
+model Transaction {
+  id          Int             @id @default(autoincrement()) @map("id")
+  card_id     Int?            @map("card_id") // puede ser null si es otra cosa (ej. transferencia)
+  user_id     Int             @map("user_id")
+  type        TransactionType @map("type")
+  description String?         @map("description")
+  amount      Decimal         @map("amount") @db.Decimal(12, 2) // cantidad de la transacción (positivo)
+  currency    Currency        @default(MXN) @map("currency")
+  happened_at DateTime        @default(now()) @map("happened_at")
+
+  // Si la transacción afecta el crédito de la tarjeta o no (ej: compra diferida original = false)
+  affects_credit Boolean @default(true) @map("affects_credit")
+
+  // crédito usado en la tarjeta justo después de aplicar esta transacción (sirve para auditoría / instant reads)
+  credit_used_after Decimal? @map("credit_used_after") @db.Decimal(12, 2)
+
+  // si la transacción es una compra diferida (resumen): entonces is_deferred = true y habrá un registro en deferred_purchase
+  is_deferred Boolean @default(false) @map("is_deferred")
+
+  // Si la transacción es una mensualidad, referencia a la compra diferida
+  deferred_purchase_id Int? @map("deferred_purchase_id")
+
+  // seguimiento de pagos: cuánto falta por pagar esta transacción (por ejemplo, una compra de 120 -> outstanding 120 al inicio)
+  outstanding_amount Decimal       @default("0.00") @map("outstanding_amount") @db.Decimal(12, 2)
+  payment_status     PaymentStatus @default(PENDING) @map("payment_status")
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  // relaciones
+  card                       CreditCard?       @relation("card_transactions", fields: [card_id], references: [id])
+  user                       User              @relation(fields: [user_id], references: [id])
+  original_deferred_purchase DeferredPurchase? @relation("deferred_original_transaction")
+
+  // si esto es la compra original diferida, relación 1:1 con deferred_purchase
+  deferred_purchase DeferredPurchase? @relation("deferred_installments", fields: [deferred_purchase_id], references: [id])
+
+  // pagos que este transaction (cuando es PAYMENT) asigna a otras transacciones
+  allocations_made PaymentAllocation[] @relation("allocations_from")
+
+  // asignaciones que aplican *a* esta transacción (cuando alguien pagó parcialmente ésta)
+  allocations_received PaymentAllocation[] @relation("allocations_to")
+
+  @@index([card_id], name: "idx_transactions_card_id")
+  @@index([user_id], name: "idx_transactions_user_id")
+  @@index([deferred_purchase_id], name: "idx_transactions_deferred_purchase_id")
+  @@map("transactions")
+}
+
+model DeferredPurchase {
+  id                      Int      @id @default(autoincrement()) @map("id")
+  original_transaction_id Int      @unique @map("original_transaction_id")
+  total_amount            Decimal  @map("total_amount") @db.Decimal(12, 2)
+  months                  Int      @map("months")
+  monthly_amount          Decimal  @map("monthly_amount") @db.Decimal(12, 2)
+  created_at              DateTime @default(now()) @map("created_at")
+
+  // relaciones
+  original_transaction Transaction @relation("deferred_original_transaction", fields: [original_transaction_id], references: [id])
+
+  installments Transaction[] @relation("deferred_installments")
+
+  @@map("deferred_purchases")
+}
+
+model PaymentAllocation {
+  id Int @id @default(autoincrement()) @map("id")
+
+  // payment_tx está siempre apuntando a una transaction de tipo PAYMENT
+  payment_transaction_id Int @map("payment_transaction_id")
+  // target_tx es la transacción a la que se aplica parte (o todo) del pago
+  target_transaction_id  Int @map("target_transaction_id")
+
+  amount_allocated Decimal  @map("amount_allocated") @db.Decimal(12, 2)
+  created_at       DateTime @default(now()) @map("created_at")
+
+  payment_transaction Transaction @relation("allocations_from", fields: [payment_transaction_id], references: [id])
+  target_transaction  Transaction @relation("allocations_to", fields: [target_transaction_id], references: [id])
+
+  @@index([payment_transaction_id], name: "idx_allocations_payment_tx")
+  @@index([target_transaction_id], name: "idx_allocations_target_tx")
+  @@map("payment_allocations")
 }
