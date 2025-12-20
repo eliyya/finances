@@ -30,10 +30,9 @@ export default function RootLayout({
     return (
         <html
             lang='en'
-            {...mantineHtmlProps}
             data-mantine-color-scheme='dark'
+            style={{ colorScheme: 'dark' }}
             className='dark'
-            style={{ 'color-scheme': 'dark' } as React.CSSProperties}
         >
             <head>
                 <ColorSchemeScript

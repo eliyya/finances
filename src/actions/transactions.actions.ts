@@ -131,3 +131,23 @@ export async function getTransactions(card_name: string) {
     if (!card) return { card: null, transactions: [] }
     return { card, transactions: card.transactions }
 }
+
+export async function deleteTransactionAction(id: string) {
+    db.$transaction(async db => {
+        const transaction = await db.transaction.findUnique({
+            where: { id },
+        })
+        if (!transaction) throw new Error('Transaction not found')
+        await db.transaction.delete({
+            where: { id },
+        })
+        await db.card.update({
+            where: { id: transaction.card_id },
+            data: {
+                balance: {
+                    decrement: transaction.amount,
+                },
+            },
+        })
+    })
+}
