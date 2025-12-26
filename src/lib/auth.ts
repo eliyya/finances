@@ -10,11 +10,12 @@ export const auth = betterAuth({
     emailAndPassword: {
         enabled: true,
     },
-    appName: 'My App',
+    appName: 'Finzas App',
     plugins: [
         twoFactor({
             schema: {
                 user: {
+                    modelName: 'user',
                     fields: {
                         twoFactorEnabled: 'two_factor_enabled',
                         backupCodes: 'backup_codes',
@@ -22,6 +23,7 @@ export const auth = betterAuth({
                     },
                 },
                 twoFactor: {
+                    modelName: 'twoFactor',
                     fields: {
                         twoFactorEnabled: 'two_factor_enabled',
                         backupCodes: 'backup_codes',
@@ -32,6 +34,7 @@ export const auth = betterAuth({
         }),
     ],
     user: {
+        modelName: 'user',
         fields: {
             createdAt: 'created_at',
             updatedAt: 'updated_at',
@@ -39,6 +42,7 @@ export const auth = betterAuth({
         },
     },
     session: {
+        modelName: 'session',
         fields: {
             createdAt: 'created_at',
             expiresAt: 'expires_at',
@@ -49,6 +53,7 @@ export const auth = betterAuth({
         },
     },
     verification: {
+        modelName: 'verification',
         fields: {
             createdAt: 'created_at',
             expiresAt: 'expires_at',
@@ -56,6 +61,7 @@ export const auth = betterAuth({
         },
     },
     account: {
+        modelName: 'account',
         fields: {
             createdAt: 'created_at',
             expiresAt: 'expires_at',
@@ -70,4 +76,5 @@ export const auth = betterAuth({
             refreshToken: 'refresh_token',
         },
     },
+    advanced: { database: { generateId: false } },
 })

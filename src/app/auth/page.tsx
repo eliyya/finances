@@ -19,6 +19,9 @@ import {
     InputOTPSeparator,
     InputOTPSlot,
 } from '@/components/ui/input-otp'
+import { PrismaClientKnownRequestError } from '@/prisma/generated/internal/prismaNamespace'
+import { registerAction } from '@/actions/auth.actions'
+import { toast } from 'sonner'
 
 type Step = 'credentials' | 'totp' | 'register'
 type Store = {
@@ -186,18 +189,23 @@ function RegisterForm() {
                 return
             }
 
-            const res = await authClient.signUp.email({
+            const res = await registerAction({
                 email,
-                password,
                 name,
+                password,
             })
-            console.log(res)
-            if (res.error) {
-                setError(res.error.message!)
+            if (res.status === 'success') {
+                toast('Te has registrado correctamente', {
+                    description: 'Ahora puedes iniciar sesión',
+                })
+                setStep('credentials')
                 return
             }
-            setStep('totp')
-            // window.location.href = '/'
+            switch (res.type) {
+                case 'unknown': {
+                    setError('Ha ocurrido un error')
+                }
+            }
         })
     }
 
